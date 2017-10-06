@@ -5,6 +5,7 @@
 3. [Gson Performance and Scalability](#TOC-Gson-Performance-and-Scalability)
 4. [Gson Users](#TOC-Gson-Users)
 5. [Using Gson](#TOC-Using-Gson)
+   * [Using Gson with Gradle/Android](#TOC-Gson-With-Gradle)
    * [Using Gson with Maven](#TOC-Gson-With-Maven)
    * [Primitives Examples](#TOC-Primitives-Examples)
    * [Object Examples](#TOC-Object-Examples)
@@ -70,6 +71,12 @@ The primary class to use is [`Gson`](gson/src/main/java/com/google/gson/Gson.jav
 
 The Gson instance does not maintain any state while invoking Json operations. So, you are free to reuse the same object for multiple Json serialization and deserialization operations.
 
+## <a name="TOC-Gson-With-Gradle"></a>Using Gson with Gradle/Android
+```
+dependencies {
+    compile 'com.google.code.gson:gson:2.8.2'
+}
+```
 ## <a name="TOC-Gson-With-Maven"></a>Using Gson with Maven
 To use Gson with Maven2/3, you can use the Gson version available in Maven Central by adding the following dependency:
 
