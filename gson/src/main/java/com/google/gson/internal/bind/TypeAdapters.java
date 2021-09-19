@@ -17,18 +17,19 @@
 package com.google.gson.internal.bind;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.sql.Timestamp;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Calendar;
 import java.util.Currency;
-import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
@@ -406,7 +407,7 @@ public final class TypeAdapters {
       out.value(value);
     }
   };
-  
+
   public static final TypeAdapter<BigDecimal> BIG_DECIMAL = new TypeAdapter<BigDecimal>() {
     @Override public BigDecimal read(JsonReader in) throws IOException {
       if (in.peek() == JsonToken.NULL) {
@@ -424,7 +425,7 @@ public final class TypeAdapters {
       out.value(value);
     }
   };
-  
+
   public static final TypeAdapter<BigInteger> BIG_INTEGER = new TypeAdapter<BigInteger>() {
     @Override public BigInteger read(JsonReader in) throws IOException {
       if (in.peek() == JsonToken.NULL) {
@@ -569,27 +570,6 @@ public final class TypeAdapters {
   }.nullSafe();
   public static final TypeAdapterFactory CURRENCY_FACTORY = newFactory(Currency.class, CURRENCY);
 
-  public static final TypeAdapterFactory TIMESTAMP_FACTORY = new TypeAdapterFactory() {
-    @SuppressWarnings("unchecked") // we use a runtime check to make sure the 'T's equal
-    @Override public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> typeToken) {
-      if (typeToken.getRawType() != Timestamp.class) {
-        return null;
-      }
-
-      final TypeAdapter<Date> dateTypeAdapter = gson.getAdapter(Date.class);
-      return (TypeAdapter<T>) new TypeAdapter<Timestamp>() {
-        @Override public Timestamp read(JsonReader in) throws IOException {
-          Date date = dateTypeAdapter.read(in);
-          return date != null ? new Timestamp(date.getTime()) : null;
-        }
-
-        @Override public void write(JsonWriter out, Timestamp value) throws IOException {
-          dateTypeAdapter.write(out, value);
-        }
-      };
-    }
-  };
-
   public static final TypeAdapter<Calendar> CALENDAR = new TypeAdapter<Calendar>() {
     private static final String YEAR = "year";
     private static final String MONTH = "month";
@@ -697,6 +677,10 @@ public final class TypeAdapters {
 
   public static final TypeAdapter<JsonElement> JSON_ELEMENT = new TypeAdapter<JsonElement>() {
     @Override public JsonElement read(JsonReader in) throws IOException {
+      if (in instanceof JsonTreeReader) {
+        return ((JsonTreeReader) in).nextJsonElement();
+      }
+
       switch (in.peek()) {
       case STRING:
         return new JsonPrimitive(in.nextString());
@@ -776,9 +760,20 @@ public final class TypeAdapters {
 
     public EnumTypeAdapter(Class<T> classOfT) {
       try {
-        for (T constant : classOfT.getEnumConstants()) {
+        for (final Field field : classOfT.getDeclaredFields()) {
+          if (!field.isEnumConstant()) {
+            continue;
+          }
+          AccessController.doPrivileged(new PrivilegedAction<Void>() {
+            @Override public Void run() {
+              field.setAccessible(true);
+              return null;
+            }
+          });
+          @SuppressWarnings("unchecked")
+          T constant = (T)(field.get(null));
           String name = constant.name();
-          SerializedName annotation = classOfT.getField(name).getAnnotation(SerializedName.class);
+          SerializedName annotation = field.getAnnotation(SerializedName.class);
           if (annotation != null) {
             name = annotation.value();
             for (String alternate : annotation.alternate()) {
@@ -788,7 +783,7 @@ public final class TypeAdapters {
           nameToConstant.put(name, constant);
           constantToName.put(constant, name);
         }
-      } catch (NoSuchFieldException e) {
+      } catch (IllegalAccessException e) {
         throw new AssertionError(e);
       }
     }
