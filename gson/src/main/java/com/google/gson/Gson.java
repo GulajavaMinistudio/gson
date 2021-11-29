@@ -299,18 +299,40 @@ public final class Gson {
     return new GsonBuilder(this);
   }
 
+  /**
+   * @deprecated This method by accident exposes an internal Gson class; it might be removed in a
+   * future version.
+   */
+  @Deprecated
   public Excluder excluder() {
     return excluder;
   }
 
+  /**
+   * Returns the field naming strategy used by this Gson instance.
+   *
+   * @see GsonBuilder#setFieldNamingStrategy(FieldNamingStrategy)
+   */
   public FieldNamingStrategy fieldNamingStrategy() {
     return fieldNamingStrategy;
   }
 
+  /**
+   * Returns whether this Gson instance is serializing JSON object properties with
+   * {@code null} values, or just omits them.
+   *
+   * @see GsonBuilder#serializeNulls()
+   */
   public boolean serializeNulls() {
     return serializeNulls;
   }
 
+  /**
+   * Returns whether this Gson instance produces JSON output which is
+   * HTML-safe, that means all HTML characters are escaped.
+   *
+   * @see GsonBuilder#disableHtmlEscaping()
+   */
   public boolean htmlSafe() {
     return htmlSafe;
   }
@@ -756,6 +778,15 @@ public final class Gson {
 
   /**
    * Returns a new JSON writer configured for the settings on this Gson instance.
+   *
+   * <p>The following settings are considered:
+   * <ul>
+   *   <li>{@link GsonBuilder#disableHtmlEscaping()}</li>
+   *   <li>{@link GsonBuilder#generateNonExecutableJson()}</li>
+   *   <li>{@link GsonBuilder#serializeNulls()}</li>
+   *   <li>{@link GsonBuilder#setLenient()}</li>
+   *   <li>{@link GsonBuilder#setPrettyPrinting()}</li>
+   * </ul>
    */
   public JsonWriter newJsonWriter(Writer writer) throws IOException {
     if (generateNonExecutableJson) {
@@ -765,12 +796,19 @@ public final class Gson {
     if (prettyPrinting) {
       jsonWriter.setIndent("  ");
     }
+    jsonWriter.setHtmlSafe(htmlSafe);
+    jsonWriter.setLenient(lenient);
     jsonWriter.setSerializeNulls(serializeNulls);
     return jsonWriter;
   }
 
   /**
    * Returns a new JSON reader configured for the settings on this Gson instance.
+   *
+   * <p>The following settings are considered:
+   * <ul>
+   *   <li>{@link GsonBuilder#setLenient()}</li>
+   * </ul>
    */
   public JsonReader newJsonReader(Reader reader) {
     JsonReader jsonReader = new JsonReader(reader);
