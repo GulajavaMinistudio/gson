@@ -95,7 +95,7 @@ import java.util.Arrays;
  *   }
  *
  *   public List<Message> readMessagesArray(JsonReader reader) throws IOException {
- *     List<Message> messages = new ArrayList<Message>();
+ *     List<Message> messages = new ArrayList<>();
  *
  *     reader.beginArray();
  *     while (reader.hasNext()) {
@@ -131,7 +131,7 @@ import java.util.Arrays;
  *   }
  *
  *   public List<Double> readDoublesArray(JsonReader reader) throws IOException {
- *     List<Double> doubles = new ArrayList<Double>();
+ *     List<Double> doubles = new ArrayList<>();
  *
  *     reader.beginArray();
  *     while (reader.hasNext()) {
@@ -170,7 +170,7 @@ import java.util.Arrays;
  * precision loss, extremely large values should be written and read as strings
  * in JSON.
  *
- * <a id="nonexecuteprefix"/><h3>Non-Execute Prefix</h3>
+ * <h3 id="nonexecuteprefix">Non-Execute Prefix</h3>
  * Web servers that serve private data using JSON may be vulnerable to <a
  * href="http://en.wikipedia.org/wiki/JSON#Cross-site_request_forgery">Cross-site
  * request forgery</a> attacks. In such an attack, a malicious site gains access
@@ -413,7 +413,7 @@ public class JsonReader implements Closeable {
     if (p == PEEKED_NONE) {
       p = doPeek();
     }
-    return p != PEEKED_END_OBJECT && p != PEEKED_END_ARRAY;
+    return p != PEEKED_END_OBJECT && p != PEEKED_END_ARRAY && p != PEEKED_EOF;
   }
 
   /**
@@ -1212,7 +1212,7 @@ public class JsonReader implements Closeable {
   /**
    * Closes this JSON reader and the underlying {@link java.io.Reader}.
    */
-  public void close() throws IOException {
+  @Override public void close() throws IOException {
     peeked = PEEKED_NONE;
     stack[0] = JsonScope.CLOSED;
     stackSize = 1;
