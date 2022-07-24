@@ -493,8 +493,28 @@ public class JsonWriter implements Closeable, Flushable {
   /**
    * Encodes {@code value}.
    *
-   * @param value a finite value. May not be {@link Double#isNaN() NaNs} or
-   *     {@link Double#isInfinite() infinities}.
+   * @param value a finite value, or if {@link #setLenient(boolean) lenient},
+   *     also {@link Float#isNaN() NaN} or {@link Float#isInfinite()
+   *     infinity}.
+   * @return this writer.
+   * @throws IllegalArgumentException if the value is NaN or Infinity and this writer is not {@link
+   *     #setLenient(boolean) lenient}.
+   */
+  public JsonWriter value(float value) throws IOException {
+    writeDeferredName();
+    if (!lenient && (Float.isNaN(value) || Float.isInfinite(value))) {
+      throw new IllegalArgumentException("Numeric values must be finite, but was " + value);
+    }
+    beforeValue();
+    out.append(Float.toString(value));
+    return this;
+  }
+
+  /**
+   * Encodes {@code value}.
+   *
+   * @param value a finite value, or if {@link #setLenient(boolean) lenient},
+   *     also {@link Double#isNaN() NaN} or {@link Double#isInfinite() infinity}.
    * @return this writer.
    * @throws IllegalArgumentException if the value is NaN or Infinity and this writer is
    *     not {@link #setLenient(boolean) lenient}.
@@ -536,8 +556,8 @@ public class JsonWriter implements Closeable, Flushable {
    * Encodes {@code value}. The value is written by directly writing the {@link Number#toString()}
    * result to JSON. Implementations must make sure that the result represents a valid JSON number.
    *
-   * @param value a finite value. May not be {@link Double#isNaN() NaNs} or
-   *     {@link Double#isInfinite() infinities}.
+   * @param value a finite value, or if {@link #setLenient(boolean) lenient},
+   *     also {@link Double#isNaN() NaN} or {@link Double#isInfinite() infinity}.
    * @return this writer.
    * @throws IllegalArgumentException if the value is NaN or Infinity and this writer is
    *     not {@link #setLenient(boolean) lenient}; or if the {@code toString()} result is not a
