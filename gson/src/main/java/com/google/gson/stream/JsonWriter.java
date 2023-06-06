@@ -24,6 +24,8 @@ import static com.google.gson.stream.JsonScope.NONEMPTY_ARRAY;
 import static com.google.gson.stream.JsonScope.NONEMPTY_DOCUMENT;
 import static com.google.gson.stream.JsonScope.NONEMPTY_OBJECT;
 
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import com.google.gson.FormattingStyle;
 import java.io.Closeable;
 import java.io.Flushable;
 import java.io.IOException;
@@ -35,8 +37,6 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
-
-import com.google.gson.FormattingStyle;
 
 /**
  * Writes a JSON (<a href="http://www.ietf.org/rfc/rfc7159.txt">RFC 7159</a>)
@@ -181,15 +181,12 @@ public class JsonWriter implements Closeable, Flushable {
     push(EMPTY_DOCUMENT);
   }
 
-  /**
-   * The settings used for pretty printing, or null for no pretty printing.
-   */
   private FormattingStyle formattingStyle;
-
-  /**
-   * The name/value separator; either ":" or ": ".
-   */
-  private String separator = ":";
+  // These fields cache data derived from the formatting style, to avoid having to
+  // re-evaluate it every time something is written
+  private String formattedColon;
+  private String formattedComma;
+  private boolean usesEmptyNewlineAndIndent;
 
   private boolean lenient;
 
@@ -206,6 +203,7 @@ public class JsonWriter implements Closeable, Flushable {
    */
   public JsonWriter(Writer out) {
     this.out = Objects.requireNonNull(out, "out == null");
+    setFormattingStyle(FormattingStyle.COMPACT);
   }
 
   /**
@@ -214,42 +212,55 @@ public class JsonWriter implements Closeable, Flushable {
    * will be compact. Otherwise the encoded document will be more
    * human-readable.
    *
+   * <p>This is a convenience method which overwrites any previously
+   * {@linkplain #setFormattingStyle(FormattingStyle) set formatting style} with
+   * either {@link FormattingStyle#COMPACT} if the given indent string is
+   * empty, or {@link FormattingStyle#PRETTY} with the given indent if
+   * not empty.
+   *
    * @param indent a string containing only whitespace.
    */
   public final void setIndent(String indent) {
-    if (indent.length() == 0) {
-      setFormattingStyle(null);
+    if (indent.isEmpty()) {
+      setFormattingStyle(FormattingStyle.COMPACT);
     } else {
-      setFormattingStyle(FormattingStyle.DEFAULT.withIndent(indent));
+      setFormattingStyle(FormattingStyle.PRETTY.withIndent(indent));
     }
   }
 
   /**
-   * Sets the pretty printing style to be used in the encoded document.
-   * No pretty printing if null.
+   * Sets the formatting style to be used in the encoded document.
    *
-   * <p>Sets the various attributes to be used in the encoded document. 
-   * For example the indentation string to be repeated for each level of indentation.
-   * Or the newline style, to accommodate various OS styles.</p>
+   * <p>The formatting style specifies for example the indentation string to be
+   * repeated for each level of indentation, or the newline style, to accommodate
+   * various OS styles.</p>
    *
-   * <p>Has no effect if the serialized format is a single line.</p>
-   *
-   * @param formattingStyle the style used for pretty printing, no pretty printing if null.
+   * @param formattingStyle the formatting style to use, must not be {@code null}.
    * @since $next-version$
    */
   public final void setFormattingStyle(FormattingStyle formattingStyle) {
-    this.formattingStyle = formattingStyle;
-    if (formattingStyle == null) {
-      this.separator = ":";
+    this.formattingStyle = Objects.requireNonNull(formattingStyle);
+
+    this.formattedComma = ",";
+    if (this.formattingStyle.usesSpaceAfterSeparators()) {
+      this.formattedColon = ": ";
+
+      // Only add space if no newline is written
+      if (this.formattingStyle.getNewline().isEmpty()) {
+        this.formattedComma = ", ";
+      }
     } else {
-      this.separator = ": ";
+      this.formattedColon = ":";
     }
+
+    this.usesEmptyNewlineAndIndent = this.formattingStyle.getNewline().isEmpty()
+        && this.formattingStyle.getIndent().isEmpty();
   }
 
   /**
    * Returns the pretty printing style used by this writer.
    *
-   * @return the FormattingStyle that will be used.
+   * @return the {@code FormattingStyle} that will be used.
    * @since $next-version$
    */
   public final FormattingStyle getFormattingStyle() {
@@ -318,6 +329,7 @@ public class JsonWriter implements Closeable, Flushable {
    *
    * @return this writer.
    */
+  @CanIgnoreReturnValue
   public JsonWriter beginArray() throws IOException {
     writeDeferredName();
     return open(EMPTY_ARRAY, '[');
@@ -328,6 +340,7 @@ public class JsonWriter implements Closeable, Flushable {
    *
    * @return this writer.
    */
+  @CanIgnoreReturnValue
   public JsonWriter endArray() throws IOException {
     return close(EMPTY_ARRAY, NONEMPTY_ARRAY, ']');
   }
@@ -338,6 +351,7 @@ public class JsonWriter implements Closeable, Flushable {
    *
    * @return this writer.
    */
+  @CanIgnoreReturnValue
   public JsonWriter beginObject() throws IOException {
     writeDeferredName();
     return open(EMPTY_OBJECT, '{');
@@ -348,6 +362,7 @@ public class JsonWriter implements Closeable, Flushable {
    *
    * @return this writer.
    */
+  @CanIgnoreReturnValue
   public JsonWriter endObject() throws IOException {
     return close(EMPTY_OBJECT, NONEMPTY_OBJECT, '}');
   }
@@ -356,6 +371,7 @@ public class JsonWriter implements Closeable, Flushable {
    * Enters a new scope by appending any necessary whitespace and the given
    * bracket.
    */
+  @CanIgnoreReturnValue
   private JsonWriter open(int empty, char openBracket) throws IOException {
     beforeValue();
     push(empty);
@@ -367,6 +383,7 @@ public class JsonWriter implements Closeable, Flushable {
    * Closes the current scope by appending any necessary whitespace and the
    * given bracket.
    */
+  @CanIgnoreReturnValue
   private JsonWriter close(int empty, int nonempty, char closeBracket)
       throws IOException {
     int context = peek();
@@ -412,9 +429,10 @@ public class JsonWriter implements Closeable, Flushable {
   /**
    * Encodes the property name.
    *
-   * @param name the name of the forthcoming value. May not be null.
+   * @param name the name of the forthcoming value. May not be {@code null}.
    * @return this writer.
    */
+  @CanIgnoreReturnValue
   public JsonWriter name(String name) throws IOException {
     Objects.requireNonNull(name, "name == null");
     if (deferredName != null) {
@@ -441,6 +459,7 @@ public class JsonWriter implements Closeable, Flushable {
    * @param value the literal string value, or null to encode a null literal.
    * @return this writer.
    */
+  @CanIgnoreReturnValue
   public JsonWriter value(String value) throws IOException {
     if (value == null) {
       return nullValue();
@@ -462,6 +481,7 @@ public class JsonWriter implements Closeable, Flushable {
    *    writing raw JSON values.
    * @since 2.4
    */
+  @CanIgnoreReturnValue
   public JsonWriter jsonValue(String value) throws IOException {
     if (value == null) {
       return nullValue();
@@ -477,6 +497,7 @@ public class JsonWriter implements Closeable, Flushable {
    *
    * @return this writer.
    */
+  @CanIgnoreReturnValue
   public JsonWriter nullValue() throws IOException {
     if (deferredName != null) {
       if (serializeNulls) {
@@ -496,6 +517,7 @@ public class JsonWriter implements Closeable, Flushable {
    *
    * @return this writer.
    */
+  @CanIgnoreReturnValue
   public JsonWriter value(boolean value) throws IOException {
     writeDeferredName();
     beforeValue();
@@ -509,6 +531,7 @@ public class JsonWriter implements Closeable, Flushable {
    * @return this writer.
    * @since 2.7
    */
+  @CanIgnoreReturnValue
   public JsonWriter value(Boolean value) throws IOException {
     if (value == null) {
       return nullValue();
@@ -530,6 +553,7 @@ public class JsonWriter implements Closeable, Flushable {
    *     #setLenient(boolean) lenient}.
    * @since 2.9.1
    */
+  @CanIgnoreReturnValue
   public JsonWriter value(float value) throws IOException {
     writeDeferredName();
     if (!lenient && (Float.isNaN(value) || Float.isInfinite(value))) {
@@ -549,6 +573,7 @@ public class JsonWriter implements Closeable, Flushable {
    * @throws IllegalArgumentException if the value is NaN or Infinity and this writer is
    *     not {@link #setLenient(boolean) lenient}.
    */
+  @CanIgnoreReturnValue
   public JsonWriter value(double value) throws IOException {
     writeDeferredName();
     if (!lenient && (Double.isNaN(value) || Double.isInfinite(value))) {
@@ -564,6 +589,7 @@ public class JsonWriter implements Closeable, Flushable {
    *
    * @return this writer.
    */
+  @CanIgnoreReturnValue
   public JsonWriter value(long value) throws IOException {
     writeDeferredName();
     beforeValue();
@@ -593,6 +619,7 @@ public class JsonWriter implements Closeable, Flushable {
    *     not {@link #setLenient(boolean) lenient}; or if the {@code toString()} result is not a
    *     valid JSON number.
    */
+  @CanIgnoreReturnValue
   public JsonWriter value(Number value) throws IOException {
     if (value == null) {
       return nullValue();
@@ -676,7 +703,7 @@ public class JsonWriter implements Closeable, Flushable {
   }
 
   private void newline() throws IOException {
-    if (formattingStyle == null) {
+    if (usesEmptyNewlineAndIndent) {
       return;
     }
 
@@ -693,7 +720,7 @@ public class JsonWriter implements Closeable, Flushable {
   private void beforeName() throws IOException {
     int context = peek();
     if (context == NONEMPTY_OBJECT) { // first in object
-      out.write(',');
+      out.write(formattedComma);
     } else if (context != EMPTY_OBJECT) { // not in an object!
       throw new IllegalStateException("Nesting problem.");
     }
@@ -725,12 +752,12 @@ public class JsonWriter implements Closeable, Flushable {
       break;
 
     case NONEMPTY_ARRAY: // another in array
-      out.append(',');
+      out.append(formattedComma);
       newline();
       break;
 
     case DANGLING_NAME: // value for name
-      out.append(separator);
+      out.append(formattedColon);
       replaceTop(NONEMPTY_OBJECT);
       break;
 
