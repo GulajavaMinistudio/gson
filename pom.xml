@@ -93,7 +93,7 @@
       <dependency>
         <groupId>com.google.truth</groupId>
         <artifactId>truth</artifactId>
-        <version>1.2.0</version>
+        <version>1.3.0</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -329,7 +329,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>3.2.3</version>
+          <version>3.2.5</version>
           </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
