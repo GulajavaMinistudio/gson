@@ -260,12 +260,34 @@ public class JsonPrimitiveTest {
   }
 
   @Test
-  public void testValidJsonOnToString() {
+  public void testToString() {
     JsonPrimitive json = new JsonPrimitive("Some\nEscaped\nValue");
     assertThat(json.toString()).isEqualTo("\"Some\\nEscaped\\nValue\"");
 
+    json = new JsonPrimitive("");
+    assertThat(json.toString()).isEqualTo("\"\"");
+
     json = new JsonPrimitive(new BigDecimal("1.333"));
     assertThat(json.toString()).isEqualTo("1.333");
+
+    // Preserves trailing 0
+    json = new JsonPrimitive(new BigDecimal("1.0000"));
+    assertThat(json.toString()).isEqualTo("1.0000");
+
+    json = new JsonPrimitive(Float.NaN);
+    assertThat(json.toString()).isEqualTo("NaN");
+
+    json = new JsonPrimitive(Double.NEGATIVE_INFINITY);
+    assertThat(json.toString()).isEqualTo("-Infinity");
+
+    json = new JsonPrimitive('a');
+    assertThat(json.toString()).isEqualTo("\"a\"");
+
+    json = new JsonPrimitive('\0');
+    assertThat(json.toString()).isEqualTo("\"\\u0000\"");
+
+    json = new JsonPrimitive(true);
+    assertThat(json.toString()).isEqualTo("true");
   }
 
   @Test
@@ -320,5 +342,52 @@ public class JsonPrimitiveTest {
   public void testDeepCopy() {
     JsonPrimitive a = new JsonPrimitive("a");
     assertThat(a).isSameInstanceAs(a.deepCopy()); // Primitives are immutable!
+  }
+
+  @Test
+  public void testBigDecimalEquals() {
+    JsonPrimitive small = new JsonPrimitive(1.0);
+    JsonPrimitive large = new JsonPrimitive(2.0);
+    assertThat(small.equals(large)).isFalse();
+
+    BigDecimal doubleMax = BigDecimal.valueOf(Double.MAX_VALUE);
+    JsonPrimitive smallDecimal = new JsonPrimitive(doubleMax.add(new BigDecimal("100.0")));
+    JsonPrimitive largeDecimal = new JsonPrimitive(doubleMax.add(new BigDecimal("200.0")));
+    assertThat(smallDecimal.equals(largeDecimal)).isFalse();
+  }
+
+  @Test
+  public void testBigDecimalEqualsZero() {
+    assertThat(
+            new JsonPrimitive(new BigDecimal("0.0"))
+                .equals(new JsonPrimitive(new BigDecimal("0.00"))))
+        .isTrue();
+
+    assertThat(
+            new JsonPrimitive(new BigDecimal("0.00"))
+                .equals(new JsonPrimitive(Double.valueOf("0.00"))))
+        .isTrue();
+  }
+
+  /**
+   * Verifies that {@link JsonPrimitive#equals(Object)} is <i>transitive</i> for {@link BigDecimal},
+   * as required by the {@link Object#equals(Object)} documentation.
+   */
+  @Test
+  public void testBigDecimalEqualsTransitive() {
+    JsonPrimitive x = new JsonPrimitive(new BigDecimal("0"));
+    JsonPrimitive y = new JsonPrimitive(0.0d);
+    JsonPrimitive z = new JsonPrimitive(new BigDecimal("0.00"));
+
+    assertThat(x.equals(y)).isTrue();
+    assertThat(y.equals(z)).isTrue();
+    // ... implies
+    assertThat(x.equals(z)).isTrue();
+  }
+
+  @Test
+  public void testEqualsDoubleNaNAndBigDecimal() {
+    assertThat(new JsonPrimitive(Double.NaN).equals(new JsonPrimitive(new BigDecimal("1.0"))))
+        .isFalse();
   }
 }

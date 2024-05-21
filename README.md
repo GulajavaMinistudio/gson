@@ -5,7 +5,12 @@ Gson can work with arbitrary Java objects including pre-existing objects that yo
 
 There are a few open-source projects that can convert Java objects to JSON. However, most of them require that you place Java annotations in your classes; something that you can not do if you do not have access to the source-code. Most also do not fully support the use of Java Generics. Gson considers both of these as very important design goals.
 
-:information_source: Gson is currently in maintenance mode; existing bugs will be fixed, but large new features will likely not be added. If you want to add a new feature, please first search for existing GitHub issues, or create a new one to discuss the feature and get feedback.
+> [!NOTE]\
+> Gson is currently in maintenance mode; existing bugs will be fixed, but large new features will likely not be added. If you want to add a new feature, please first search for existing GitHub issues, or create a new one to discuss the feature and get feedback.
+
+> [!IMPORTANT]\
+> Gson's main focus is on Java. Using it with other JVM languages such as Kotlin or Scala might work fine in many cases, but language-specific features such as Kotlin's non-`null` types or constructors with default arguments are not supported. This can lead to confusing and incorrect behavior.\
+> When using languages other than Java, prefer a JSON library with explicit support for that language.
 
 ### Goals
   * Provide simple `toJson()` and `fromJson()` methods to convert Java objects to JSON and vice-versa
@@ -19,7 +24,7 @@ There are a few open-source projects that can convert Java objects to JSON. Howe
 Gradle:
 ```gradle
 dependencies {
-  implementation 'com.google.code.gson:gson:2.10.1'
+  implementation 'com.google.code.gson:gson:2.11.0'
 }
 ```
 
@@ -28,7 +33,7 @@ Maven:
 <dependency>
   <groupId>com.google.code.gson</groupId>
   <artifactId>gson</artifactId>
-  <version>2.10.1</version>
+  <version>2.11.0</version>
 </dependency>
 ```
 
@@ -69,7 +74,7 @@ Older Gson versions may also support lower API levels, however this has not been
   * [Releases and change log](https://github.com/google/gson/releases): Latest releases and changes in these versions; for older releases see [`CHANGELOG.md`](CHANGELOG.md)
   * [Design document](GsonDesignDocument.md): This document discusses issues we faced while designing Gson. It also includes a comparison of Gson with other Java libraries that can be used for Json conversion
 
-Please use the ['gson' tag on StackOverflow](https://stackoverflow.com/questions/tagged/gson) or the [google-gson Google group](https://groups.google.com/group/google-gson) to discuss Gson or to post questions.
+Please use the ['gson' tag on StackOverflow](https://stackoverflow.com/questions/tagged/gson), [GitHub Discussions](https://github.com/google/gson/discussions) or the [google-gson Google group](https://groups.google.com/group/google-gson) to discuss Gson or to post questions.
 
 ### Related Content Created by Third Parties
   * [Gson Tutorial](https://www.studytrails.com/java/json/java-google-json-introduction/) by `StudyTrails`
